@@ -1,0 +1,45 @@
+name: datos-fix
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/fix.yml']
+permissions:
+  contents: write
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        inst: [usa500idxusd, usatechidxusd, gbridxgbp, lightcmdusd, brentcmdusd]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Descargar
+        run: |
+          mkdir -p data
+          npx -y dukascopy-node -i ${{ matrix.inst }} -from 2014-01-01 -to now -t h1 -p bid -f csv -dir data -fn ${{ matrix.inst }}_H1_bid -r 3 -fr
+          npx -y dukascopy-node -i ${{ matrix.inst }} -from 2024-01-01 -to now -t h1 -p ask -f csv -dir data -fn ${{ matrix.inst }}_H1_ask -r 3 -fr
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.inst }}
+          path: data/
+  guardar:
+    needs: descargar
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: data
+          merge-multiple: true
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data
+          git commit -m "Datos índices y petróleo" || echo "sin cambios"
+          git pull --rebase
+          git push
