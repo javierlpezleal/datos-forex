@@ -1,0 +1,27 @@
+name: datos
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/datos.yml']
+permissions:
+  contents: write
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Descargar EURUSD H1 (bid y ask) desde 2023
+        run: |
+          mkdir -p data
+          npx -y dukascopy-node -i eurusd -from 2023-01-01 -to now -t h1 -p bid -f csv -dir data -fn EURUSD_H1_bid
+          npx -y dukascopy-node -i eurusd -from 2023-01-01 -to now -t h1 -p ask -f csv -dir data -fn EURUSD_H1_ask
+      - name: Guardar datos en el repositorio
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data
+          git commit -m "Datos EURUSD H1" || echo "sin cambios"
+          git push
