@@ -42,4 +42,4 @@ jobs:
           git add vol
           git commit -m "Datos M15 con volumen" || echo "sin cambios"
           git pull --rebase
-          git pushw
+          git push
