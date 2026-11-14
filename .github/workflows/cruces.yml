@@ -1,0 +1,46 @@
+name: datos-m5-cruces
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/cruces.yml']
+permissions:
+  contents: write
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        inst: [audnzd, audcad, nzdcad, euraud, gbpaud, eurnzd, eurcad, gbpcad, eurgbp, eurchf]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Descargar M5
+        run: |
+          mkdir -p m5
+          npx -y dukascopy-node -i ${{ matrix.inst }} -from 2016-01-04 -to now -t m5 -p bid -f csv -dir m5 -fn ${{ matrix.inst }}_M5_bid -r 3 -fr
+          npx -y dukascopy-node -i ${{ matrix.inst }} -from 2016-01-04 -to now -t m5 -p ask -f csv -dir m5 -fn ${{ matrix.inst }}_M5_ask -r 3 -fr
+          gzip m5/*.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.inst }}
+          path: m5/
+  guardar:
+    needs: descargar
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: m5
+          merge-multiple: true
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add m5
+          git commit -m "Datos M5 cruces" || echo "sin cambios"
+          git pull --rebase
+          git push
