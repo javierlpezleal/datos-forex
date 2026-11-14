@@ -1,0 +1,45 @@
+name: datos-volumen
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/vol.yml']
+permissions:
+  contents: write
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        inst: [eurusd, gbpusd, usdjpy, xauusd, usatechidxusd, usa500idxusd, btcusd]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Descargar M15 con volumen
+        run: |
+          mkdir -p vol
+          npx -y dukascopy-node -i ${{ matrix.inst }} -from 2018-01-02 -to now -t m15 -p bid -v -f csv -dir vol -fn ${{ matrix.inst }}_M15_vol -r 3 -fr
+          gzip vol/*.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.inst }}
+          path: vol/
+  guardar:
+    needs: descargar
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: vol
+          merge-multiple: true
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add vol
+          git commit -m "Datos M15 con volumen" || echo "sin cambios"
+          git pull --rebase
+          git pushw
